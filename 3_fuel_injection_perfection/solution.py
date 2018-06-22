@@ -17,7 +17,7 @@ def answer(n):
             while sdown % 2 == 0:
                 sdown /= 2
                 sdown_div += 1
-                
+
             sup = state + 1
             sup_div = 0
             while sup % 2 == 0:
