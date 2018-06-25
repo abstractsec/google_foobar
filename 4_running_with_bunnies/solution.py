@@ -5,8 +5,6 @@
     The cost of traveling from one node to another is asymmetric and may be negative (increasing
     your timer)
 
-    Assumes you can only bring 1 bunny to the bulkhead at a time
-
     Passes 5/10 tests
 
     Issues:
@@ -60,50 +58,59 @@ def answer(times, time_limit):
 
     start_to_bunny_cost = []
     bunny_to_bulkhead_cost = []
-    bulkhead_to_bunny_cost = []
+    bunny_to_bunny_cost = {}
+    
     cost_map = {}
     for bunny in range(target - 1):
         start_to_bunny_cost.append(cost_from_start[bunny+1])
-        bulkhead_to_bunny_cost.append(cost_from_bulkhead[bunny+1])
 
         # determine the shortest path from each bunny to the bulkhead
         bunny_cost = get_shortest_paths(bunny+1, times)
         bunny_to_bulkhead_cost.append(bunny_cost[target])
 
-        # determine the cost to rescue each bunny and return to the bulkhead
-        cost = bulkhead_to_bunny_cost[bunny] + bunny_to_bulkhead_cost[bunny]
-        if cost in cost_map:
-            cost_map[cost].append(bunny)
-        else:
-            cost_map[cost] = [bunny]
+        # determine the cost from bunny to bunny
+        bunny_to_bunny_cost[bunny] = {}
+        for (pos, cost) in get_shortest_paths(bunny+1, times).items():
+            if pos > 0 and pos < target and pos-1 != bunny:
+                bunny_to_bunny_cost[bunny][pos-1] = cost
 
-    # determine the total cost 
 
     # determine the first bunny to rescue by finding the sortest path to the bulkhead via a bunny
-    #  this path could be via the bulkhead
     ttl = time_limit
     rescued = []
-    rescue_cost = 1000
-    bunny = -1
-    for b in range(len(start_to_bunny_cost)):
-        c = start_to_bunny_cost[b] + bunny_to_bulkhead_cost[b]
+    last_rescued = None
+
+    rescue_cost = 10000000
+    for bunny in range(target - 1):
+        c = start_to_bunny_cost[bunny] + bunny_to_bulkhead_cost[bunny]
         if c <= ttl and c < rescue_cost:
-            bunny = b
+            last_rescued = bunny
             rescue_cost = c
-    if bunny == -1:
+    if last_rescued is None:
         return []
+    else:
+        rescued.append(last_rescued)
+        ttl -= start_to_bunny_cost[bunny]
 
-    rescued.append(bunny)
-    ttl -= rescue_cost
-
-    # Rescue as many more bunnies as you can
-    for c in sorted(cost_map.keys()):
-        for b in cost_map[c]:
-            r = None
-            if b not in rescued and ttl - c >= 0:
-                ttl -= c
-                rescued.append(b)
-    
+    # rescue as many more bunnies as you can
+    while True:
+        # find next bunny to rescue
+        next_bunny = None
+        rescue_cost = 10000000
+        for bunny in range(target - 1):
+            if bunny in rescued:
+                continue
+            
+            c = bunny_to_bunny_cost[last_rescued][bunny]
+            if c < rescue_cost and c+bunny_to_bulkhead_cost[bunny] <= ttl :
+                rescue_cost = c
+                next_bunny = bunny
+        if next_bunny is None:
+            break
+        else:
+            rescued.append(next_bunny)
+            ttl -= bunny_to_bunny_cost[last_rescued][next_bunny]
+            last_rescued = next_bunny
 
     return sorted(rescued)
 
