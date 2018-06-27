@@ -22,7 +22,7 @@ def validate_path(times, path, ttl):
     for s in full_path:
         path_cost += times[prev][s]
         prev = s
-    
+
     return ttl >= path_cost
 
 def optimize_graph(times):
@@ -46,18 +46,14 @@ def answer(times, time_limit):
     # visit as manny inner nodes as possible before timer expires
     path = []
     bunnies = range(1, target)
-    for cnt in range(1, target):
-        min_sum = 1000000
+    for cnt in bunnies:
         this_path = None
         for p in itertools.permutations(bunnies, cnt):
-            p_sum = sum(p)
-            if p_sum < min_sum and validate_path(optimal_times, p, ttl):
-                min_sum = p_sum
-                this_path = [x-1 for x in sorted(p)]
+            p_sorted = [x-1 for x in sorted(p)]
+            if (not this_path or this_path > p_sorted) and validate_path(optimal_times, p, ttl):
+                this_path = p_sorted
         if this_path:
             path = this_path
-        else:
-            break
 
     return path
 
