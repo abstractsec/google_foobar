@@ -1,6 +1,5 @@
 import math
 
-
 def gcd(a,b):
     a = abs(a)
     b = abs(b)
@@ -10,25 +9,25 @@ def gcd(a,b):
     return a if a > 1 else 1
 
 
-def get_next_pos_and_vector(vector, pos, dimensions):
+def get_next_pos_and_bearing(bearing, pos, dimensions):
     x = pos[0]
     y = pos[1]
 
-    xd = vector[0]
-    yd = vector[1]
+    xd = bearing[0]
+    yd = bearing[1]
 
-    x_max = dimensions[0] - 1
-    y_max = dimensions[1] - 1
+    x_max = dimensions[0]
+    y_max = dimensions[1]
 
     x_bounce = 0
     y_bounce = 0
 
     # get next y position
     x += xd
-    while x<0 or x>x_max:
+    while x<1 or x>x_max:
         x_bounce += 1
-        if x<0:
-            x = abs(x)
+        if x<1:
+            x = abs(x) + 1
         if x>x_max:
             x = x_max - (x - x_max)
     
@@ -41,81 +40,103 @@ def get_next_pos_and_vector(vector, pos, dimensions):
         if y>y_max:
             y = y_max - (y - y_max)
 
-    # determine how the vector hanged as the beam bounces around
-    xv = vector[0]
-    yv = vector[1]
+    # determine how the bearing hanged as the beam bounces around
+    xv = bearing[0]
+    yv = bearing[1]
     if x_bounce % 2:
         xv *= -1
     if y_bounce % 2:
         yv *= -1
-
+    # return the new position and bearing
     return ((x, y), (xv, yv))
 
 
-def eval_vector(vector, dimensions, your_position, guard_position, distance):
-    segment_distance = math.sqrt(abs(vector[0])**2 + abs(vector[1])**2)
+def eval_bearing(bearing, dimensions, your_position, guard_position, distance):
+    segment_distance = math.sqrt(abs(bearing[0])**2 + abs(bearing[1])**2)
     dist_traveled = 0
     pos = (your_position[0], your_position[1])
     your_pos = (your_position[0], your_position[1])
     guard_pos = (guard_position[0], guard_position[1])
-    # print str(vector) + " - > ",
 
-    while dist_traveled + segment_distance < distance:
-        (pos, vector)  = get_next_pos_and_vector(vector, pos, dimensions)        
+    # Follow the laser from position to position until the beam degrades
+    while dist_traveled + segment_distance <= distance:
+        (pos, bearing)  = get_next_pos_and_bearing(bearing, pos, dimensions)        
         dist_traveled += segment_distance
-        # print pos
 
         if pos == your_pos:
-            # if you hit yourself return true
-            # print "XXX"
+            # If you will hit yourself, return false
             return False
         if pos == guard_pos:
-            # print "!!!"
-            # if you hit the guard return true
+            # If you will hit the guard, return true
             return True
-    # the beam died before hitting anyone
-    # print "---"
+    # If you won't hit anyone, return false
     return False
 
 
 def answer(dimensions, your_position, guard_position, distance):
-    vectors = {}
+    bearings = {}
     kill_shots = 0
 
-    # iterate over all possible vectors
+    # iterate over all possible bearings
     for x in range(-distance, distance+1):
         for y in range(-distance, distance+1):
-            # check for bad vectors
+            # check for bad bearings
             if x == 0 and y == 0:
                 continue
             elif x == 0:
+                v = (0, y / abs(y))
+                if v in bearings:
+                    # skip if already evaluated
+                    continue
+                
                 if your_position[0] != guard_position[0]:
+                    # skip if firing stright and not on same x-position
+                    bearings[v] = False
                     continue
-                if y > 0 and your_position[1] < guard_position[1]:
+                elif y > 0 and your_position[1] > guard_position[1]:
+                    # skip if firing stright and in the wrong direction
+                    bearings[v] = False
                     continue
-                if y < 0 and your_position[1] > guard_position[1]:
+                elif y < 0 and your_position[1] < guard_position[1]:
+                    # skip if firing stright and in the wrong direction
+                    bearings[v] = False
                     continue
-                y = y / abs(x)
+
+                bearings[v] = True
+                kill_shots += 1
             elif y == 0:
+                v = (x / abs(x), 0)
+                if v in bearings:
+                    # skip if already evaluated
+                    continue
+
                 if your_position[1] != guard_position[1]:
+                    # skip if firing stright and not on same x-position
+                    bearings[v] = False
                     continue
-                if x > 0 and your_position[0] < guard_position[0]:
+                if x > 0 and your_position[0] > guard_position[0]:
+                    # skip if firing stright and in the wrong direction
+                    bearings[v] = False
                     continue
-                if x < 0 and your_position[0] > guard_position[0]:
+                if x < 0 and your_position[0] < guard_position[0]:
+                    # skip if firing stright and in the wrong direction
+                    bearings[v] = False
                     continue
-                x = x / abs(x)
+
+                bearings[v] = True
+                kill_shots += 1
             else:
-                d = gcd(x, y)
-                x = x // d
-                y = y // d
-            v = (x, y)  
-            if v not in vectors:
-                vectors[v] = eval_vector(v, dimensions, your_position, guard_position, distance)
-                if vectors[v]:
-                    kill_shots += 1
-            # elif vectors[v]:
-            #     kill_shots += 1
-    # print vectors
+                # reduce bearing bearing using GCD 
+                d = abs(gcd(x, y))
+                x1 = x // d
+                y1 = y // d
+                v = (x1, y1)
+
+                if v not in bearings:
+                    # only evluate if this is the first time we've seen this bearing
+                    bearings[v] = eval_bearing(v, dimensions, your_position, guard_position, distance)
+                    if bearings[v]:
+                        kill_shots += 1
 
     return kill_shots
 
@@ -127,7 +148,7 @@ def test(expect, dimensions, your_position, guard_position, distance):
 Position:   %s
 Guard Pos:  %s
 Distance:   %d
- -> Ouput: %d (%d expected)\n""" % (
+  -> Ouput: %d (%d expected)\n""" % (
      dimensions, your_position,
      guard_position, distance, s, expect)
 
